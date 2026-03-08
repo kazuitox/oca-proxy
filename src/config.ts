@@ -23,6 +23,7 @@ interface RawConfig {
 	base_url?: string;
 	idcs_url?: string;
 	port?: number;
+	host?: string;
 }
 
 function readUserConfig(): RawConfig {
@@ -59,6 +60,8 @@ export const PROXY_PORT = parseInt(
 	10,
 );
 
+export const PROXY_HOST = process.env.HOST || userConfig.host || "127.0.0.1";
+
 export interface TokenData {
 	refresh_token: string;
 	created_at: string;
@@ -77,6 +80,7 @@ export interface ProxyConfig {
 	base_url?: string;
 	idcs_url?: string;
 	port?: number;
+	host?: string;
 }
 
 export function loadProxyConfig(): ProxyConfig {
@@ -86,9 +90,11 @@ export function loadProxyConfig(): ProxyConfig {
 			log_level: cfg.log_level || "INFO",
 			model_mapping: cfg.model_mapping || {},
 			default_model: cfg.default_model,
+			default_reasoning_effort: cfg.default_reasoning_effort,
 			base_url: cfg.base_url,
 			idcs_url: cfg.idcs_url,
 			port: cfg.port,
+			host: cfg.host,
 		};
 	} catch {
 		return { log_level: "INFO", model_mapping: {} };
