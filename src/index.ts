@@ -13,6 +13,7 @@ import {
 import {
 	loadProxyConfig,
 	OCA_CONFIG,
+	PROXY_HOST,
 	PROXY_PORT,
 	type ProxyConfig,
 	saveProxyConfig,
@@ -47,24 +48,6 @@ if (ARGV.includes("--help") || ARGV.includes("-h")) {
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.text({ type: "text/plain", limit: "50mb" }));
-
-// Localhost-only middleware
-app.use((req, res, next) => {
-	// Trust proxy not in use, Express gives remote address as req.ip or req.connection.remoteAddress
-	// Allow if IPv4 127.0.0.1, IPv6 ::1, or IPv4-mapped IPv6 ::ffff:127.0.0.1
-	const allowed = ["::1", "127.0.0.1", "::ffff:127.0.0.1"];
-	const ip = req.ip || "";
-	if (allowed.includes(ip)) {
-		return next();
-	}
-	const fwd = req.headers["x-forwarded-for"];
-	const fwdStr = Array.isArray(fwd) ? fwd[0] || "" : fwd || "";
-	if (fwdStr === "127.0.0.1" || fwdStr === "::1") {
-		return next();
-	}
-	log.warn(`Rejected non-localhost access from: ${req.ip}`);
-	res.status(403).send("Forbidden: Only localhost requests are allowed");
-});
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -338,7 +321,9 @@ app.get("/api/config", (_req: Request, res: Response) => {
 	const config = loadProxyConfig();
 	res.json({
 		default_model: config.default_model || DEFAULT_OCA_MODEL,
+		default_reasoning_effort: config.default_reasoning_effort,
 		model_mapping: config.model_mapping || {},
+		host: config.host || PROXY_HOST,
 	});
 });
 
@@ -348,12 +333,15 @@ app.get("/api/config", (_req: Request, res: Response) => {
 app.post("/api/config", (req: Request, res: Response) => {
 	try {
 		const currentConfig = loadProxyConfig();
-		const { default_model, model_mapping } = req.body;
+		const { default_model, default_reasoning_effort, model_mapping, host } = req.body;
 
 		const newConfig: ProxyConfig = {
 			...currentConfig,
 			default_model: default_model || currentConfig.default_model,
+			default_reasoning_effort:
+				default_reasoning_effort || currentConfig.default_reasoning_effort,
 			model_mapping: model_mapping || currentConfig.model_mapping,
+			host: host || currentConfig.host,
 		};
 
 		if (saveProxyConfig(newConfig)) {
@@ -1111,7 +1099,10 @@ app.use((req: Request, res: Response) => {
 });
 
 // Start server
-const _server = app.listen(PROXY_PORT, async () => {
+const displayHost = PROXY_HOST === "0.0.0.0" ? "localhost" : PROXY_HOST;
+const serverBaseUrl = `http://${displayHost}:${PROXY_PORT}`;
+
+const _server = app.listen(PROXY_PORT, PROXY_HOST, async () => {
 	const authStatus = tokenMgr.isAuthenticated()
 		? "✓ Authenticated"
 		: "✗ Not authenticated";
@@ -1122,12 +1113,13 @@ const _server = app.listen(PROXY_PORT, async () => {
 		keyValue("IDCS URL:", OCA_CONFIG.idcs_url),
 		keyValue("Client ID:", OCA_CONFIG.client_id),
 		keyValue("Auth Status:", authStatus),
+		keyValue("Bind Host:", PROXY_HOST),
 		"  ",
-		`  ▶ Server listening on http://localhost:${PROXY_PORT}`,
+		`  ▶ Server listening on ${serverBaseUrl}`,
 		"  ",
 		"  Endpoints:",
-		`    OpenAI:   http://localhost:${PROXY_PORT}/v1`,
-		`    Messages: http://localhost:${PROXY_PORT}/v1/messages`,
+		`    OpenAI:   ${serverBaseUrl}/v1`,
+		`    Messages: ${serverBaseUrl}/v1/messages`,
 	];
 	const banner = drawBox(lines, 58);
 	for (const l of banner) {
@@ -1135,13 +1127,13 @@ const _server = app.listen(PROXY_PORT, async () => {
 	}
 
 	if (!tokenMgr.isAuthenticated()) {
-		log.info(`Login: http://localhost:${PROXY_PORT}/login`);
+		log.info(`Login: ${serverBaseUrl}/login`);
 
 		// Auto-open browser
 		try {
 			const open = (await import("open")).default;
 			setTimeout(() => {
-				const url = `http://localhost:${PROXY_PORT}/login`;
+				const url = `${serverBaseUrl}/login`;
 				Promise.resolve(open(url))
 					.then(() => {
 						log.info("Browser opened for authentication");
@@ -1158,7 +1150,7 @@ const _server = app.listen(PROXY_PORT, async () => {
 		}
 	} else {
 		log.success("Authenticated - Server ready to use!");
-		log.info(`Dashboard: http://localhost:${PROXY_PORT}`);
+		log.info(`Dashboard: ${serverBaseUrl}`);
 	}
 });
 

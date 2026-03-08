@@ -1,7 +1,10 @@
 import type express from "express";
 import type { Request, Response } from "express";
 import type { TokenManager } from "./auth";
-import { OCA_CONFIG, PROXY_PORT, TOKEN_FILE } from "./config";
+import { OCA_CONFIG, PROXY_HOST, PROXY_PORT, TOKEN_FILE } from "./config";
+
+const DASHBOARD_HOST = PROXY_HOST === "0.0.0.0" ? "localhost" : PROXY_HOST;
+const DASHBOARD_BASE_URL = `http://${DASHBOARD_HOST}:${PROXY_PORT}`;
 
 export function registerDashboard(
 	app: express.Express,
@@ -164,11 +167,11 @@ export function registerDashboard(
 
             <div class="endpoint">
               <strong>With Claude Code (Anthropic format):</strong><br>
-              <code>ANTHROPIC_API_KEY=dummy ANTHROPIC_BASE_URL=http://localhost:${PROXY_PORT} claude</code>
+              <code>ANTHROPIC_API_KEY=dummy ANTHROPIC_BASE_URL=${DASHBOARD_BASE_URL} claude</code>
             </div>
             <div class="endpoint">
               <strong>With OpenAI SDK:</strong><br>
-              <code>OPENAI_API_KEY=dummy OPENAI_BASE_URL=http://localhost:${PROXY_PORT}/v1</code>
+              <code>OPENAI_API_KEY=dummy OPENAI_BASE_URL=${DASHBOARD_BASE_URL}/v1</code>
             </div>
           </div>
 

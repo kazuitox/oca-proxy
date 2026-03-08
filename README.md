@@ -46,13 +46,15 @@ npx ./bin/oca-proxy.js
 
 On first run, the browser will automatically open for OAuth login. After authentication, the proxy is ready to use.
 
+By default, the proxy binds to `127.0.0.1`. To allow access from other devices on your network, set `HOST=0.0.0.0` (or a specific local IP such as `192.168.1.10`) before starting the server.
+
 ## Authentication
 
 The proxy uses web-based OAuth with PKCE on whitelisted ports (8669, 8668, 8667).
 
-- **Login:** Visit `http://localhost:8669/login` or it opens automatically on first run
-- **Logout:** Visit `http://localhost:8669/logout`
-- **Status:** Visit `http://localhost:8669/health`
+- **Login:** Visit `http://127.0.0.1:8669/login` or it opens automatically on first run
+- **Logout:** Visit `http://127.0.0.1:8669/logout`
+- **Status:** Visit `http://127.0.0.1:8669/health`
 
 Tokens are stored in `~/.oca/refresh_token.json`.
 
@@ -63,7 +65,7 @@ from openai import OpenAI
 
 client = OpenAI(
     api_key="dummy",  # Not used, but required by SDK
-    base_url="http://localhost:8669/v1"
+    base_url="http://127.0.0.1:8669/v1"
 )
 
 response = client.chat.completions.create(
@@ -79,7 +81,7 @@ for chunk in response:
 ## Usage with curl
 
 ```bash
-curl http://localhost:8669/v1/chat/completions \
+curl http://127.0.0.1:8669/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "oca/gpt-4.1",
@@ -93,6 +95,29 @@ curl http://localhost:8669/v1/chat/completions \
 | Variable | Default | Description                                               |
 | -------- | ------- | --------------------------------------------------------- |
 | `PORT`   | `8669`  | Proxy server port (must be 8669, 8668, or 8667 for OAuth) |
+| `HOST`   | `127.0.0.1` | Bind host for the proxy server. Use `0.0.0.0` to listen on all interfaces. |
+
+## Bind Host Configuration
+
+You can control the bind address with either an environment variable or the config file.
+
+### Environment variable
+
+```bash
+HOST=0.0.0.0 npx oca-proxy
+```
+
+### Config file
+
+Add `host` to `/.config/oca/oca-proxy.config.json`:
+
+```json
+{
+  "host": "0.0.0.0"
+}
+```
+
+If you bind to `0.0.0.0`, access the proxy from another machine using the host machine's LAN IP, for example `http://192.168.1.10:8669/v1`.
 
 ## Supported Endpoints
 
@@ -232,7 +257,7 @@ Tagged pushes that match `v*.*.*` trigger a cross-platform build and GitHub Rele
 
   5. Optional smoke test: start the server and hit the health endpoint:
      - `./oca-proxy-<platform-arch> &`
-     - `curl -s http://localhost:8669/health`
+     - `curl -s http://127.0.0.1:8669/health`
 
 Cut a release:
 
