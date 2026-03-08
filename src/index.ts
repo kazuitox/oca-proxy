@@ -87,7 +87,7 @@ app.get("/api/logs/stream", (_req: Request, res: Response) => {
 
 // Default model for all requests
 const DEFAULT_OCA_MODEL = "oca/gpt-4.1";
-const OAUTH_CALLBACK_HOST = "127.0.0.1";
+const OAUTH_CALLBACK_HOST = "localhost";
 
 function getOAuthBaseUrl(): string {
 	return `http://${OAUTH_CALLBACK_HOST}:${PROXY_PORT}`;
