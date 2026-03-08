@@ -48,6 +48,8 @@ On first run, the browser will automatically open for OAuth login. After authent
 
 By default, the proxy binds to `127.0.0.1`. To allow access from other devices on your network, set `HOST=0.0.0.0` (or a specific local IP such as `192.168.1.10`) before starting the server.
 
+Note: the Oracle Code Assist OAuth callback is still fixed to `http://127.0.0.1:<PORT>/callback`, because the registered redirect URI only allows localhost-style callbacks. Even when the dashboard is opened from another machine, the login flow must complete in a browser on the machine where `oca-proxy` is running.
+
 ## Authentication
 
 The proxy uses web-based OAuth with PKCE on whitelisted ports (8669, 8668, 8667).
@@ -118,6 +120,8 @@ Add `host` to `/.config/oca/oca-proxy.config.json`:
 ```
 
 If you bind to `0.0.0.0`, access the proxy from another machine using the host machine's LAN IP, for example `http://192.168.1.10:8669/v1`.
+
+However, for authentication you should open `http://127.0.0.1:8669/login` directly on the host machine running `oca-proxy`.
 
 ## Supported Endpoints
 

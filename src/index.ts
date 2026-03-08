@@ -87,6 +87,11 @@ app.get("/api/logs/stream", (_req: Request, res: Response) => {
 
 // Default model for all requests
 const DEFAULT_OCA_MODEL = "oca/gpt-4.1";
+const OAUTH_CALLBACK_HOST = "127.0.0.1";
+
+function getOAuthBaseUrl(): string {
+	return `http://${OAUTH_CALLBACK_HOST}:${PROXY_PORT}`;
+}
 
 /**
  * Resolve model mapping - handles both string and object mappings
@@ -120,11 +125,14 @@ function resolveModelMapping(requestModel: string): {
  * Login endpoint - Initiate OAuth flow
  */
 app.get("/login", (req: Request, res: Response) => {
-	const baseUrl = `${req.protocol}://${req.get("host")}`;
+	const requestedHost = req.get("host") || "unknown";
+	const baseUrl = getOAuthBaseUrl();
 	const redirectUri = `${baseUrl}/callback`;
 	const authUrl = createAuthUrl(redirectUri);
 
-	log.auth("Redirecting to OAuth login...");
+	log.auth(
+		`Redirecting to OAuth login using callback host ${baseUrl} (requested via ${requestedHost})...`,
+	);
 	res.redirect(authUrl);
 });
 
@@ -1101,6 +1109,7 @@ app.use((req: Request, res: Response) => {
 // Start server
 const displayHost = PROXY_HOST === "0.0.0.0" ? "localhost" : PROXY_HOST;
 const serverBaseUrl = `http://${displayHost}:${PROXY_PORT}`;
+const oauthBaseUrl = getOAuthBaseUrl();
 
 const _server = app.listen(PROXY_PORT, PROXY_HOST, async () => {
 	const authStatus = tokenMgr.isAuthenticated()
@@ -1114,6 +1123,7 @@ const _server = app.listen(PROXY_PORT, PROXY_HOST, async () => {
 		keyValue("Client ID:", OCA_CONFIG.client_id),
 		keyValue("Auth Status:", authStatus),
 		keyValue("Bind Host:", PROXY_HOST),
+		keyValue("OAuth Callback:", `${oauthBaseUrl}/callback`),
 		"  ",
 		`  ▶ Server listening on ${serverBaseUrl}`,
 		"  ",
