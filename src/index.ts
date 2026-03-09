@@ -121,6 +121,72 @@ function resolveModelMapping(requestModel: string): {
 	return { model: defaultModel, reasoning_effort: defaultEffort };
 }
 
+function normalizeOpenAIContentPart(part: unknown): unknown {
+	if (!part || typeof part !== "object") {
+		return part;
+	}
+
+	const contentPart = part as {
+		type?: string;
+		image_url?: { url?: string; detail?: string } | string;
+	};
+
+	if (contentPart.type !== "image_url") {
+		return part;
+	}
+
+	if (
+		contentPart.image_url &&
+		typeof contentPart.image_url === "object" &&
+		"detail" in contentPart.image_url
+	) {
+		const { detail: _detail, ...imageUrl } = contentPart.image_url;
+		return {
+			...contentPart,
+			image_url: imageUrl,
+		};
+	}
+
+	return part;
+}
+
+function normalizeOpenAIMessages(messages: unknown): unknown {
+	if (!Array.isArray(messages)) {
+		return messages;
+	}
+
+	let hasImageDetail = false;
+	const normalizedMessages = messages.map((message) => {
+		if (!message || typeof message !== "object") {
+			return message;
+		}
+
+		const msg = message as { content?: unknown };
+		if (!Array.isArray(msg.content)) {
+			return message;
+		}
+
+		const normalizedContent = msg.content.map((part) => {
+			const normalizedPart = normalizeOpenAIContentPart(part);
+			if (normalizedPart !== part) {
+				hasImageDetail = true;
+			}
+			return normalizedPart;
+		});
+
+		return {
+			...msg,
+			content: normalizedContent,
+		};
+	});
+
+	if (hasImageDetail) {
+		log.debug("Removed unsupported image_url.detail fields before forwarding to OCA");
+	}
+
+	return normalizedMessages;
+}
+
 /**
  * Login endpoint - Initiate OAuth flow
  */
@@ -423,6 +489,7 @@ app.post("/v1/chat/completions", async (req: Request, res: Response) => {
 
 		// Map model if needed
 		const requestBody = { ...req.body };
+		requestBody.messages = normalizeOpenAIMessages(requestBody.messages);
 		const resolved = resolveModelMapping(requestBody.model);
 		const originalModel = requestBody.model;
 		requestBody.model = resolved.model;
@@ -506,6 +573,7 @@ app.post("/v1/responses", async (req: Request, res: Response) => {
 
 		// Map model if needed
 		const requestBody = { ...req.body };
+		requestBody.messages = normalizeOpenAIMessages(requestBody.messages);
 		const resolved = resolveModelMapping(requestBody.model);
 		const originalModel = requestBody.model;
 		requestBody.model = resolved.model;
